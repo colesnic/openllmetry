@@ -5,7 +5,7 @@ from opentelemetry.instrumentation.utils import (
 )
 from opentelemetry.trace import SpanKind
 from opentelemetry.semconv.ai import SpanAttributes
-
+import logging
 
 def _set_span_attribute(span, name, value):
     if value is not None:
@@ -67,10 +67,15 @@ def _wrap(tracer, to_wrap, wrapped, instance, args, kwargs):
             _set_search_attributes(span, args, kwargs)
         elif method in ["search_batch", "recommend_batch", "discover_batch"]:
             _set_batch_search_attributes(span, args, kwargs, method)
-
-        response = wrapped(*args, **kwargs)
-        if response:
-            span.set_status(Status(StatusCode.OK))
+ 
+        try: 
+            response = wrapped(*args, **kwargs)
+            if response:
+                span.set_status(Status(StatusCode.OK))
+        except Exception as e:
+            logging.error(f"Error during instrumentation of {method}: {e}")
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            raise
     return response
 
 
